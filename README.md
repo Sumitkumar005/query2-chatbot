@@ -239,3 +239,4 @@ For support and questions:
 - Shadcn/ui for UI components
 - FAISS for vector similarity search
 #
+# query2-chatbot
