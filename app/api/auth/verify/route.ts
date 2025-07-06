@@ -1,26 +1,67 @@
-import { type NextRequest, NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
+"use client"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
-export async function GET(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get("authorization")
-    const token = authHeader?.replace("Bearer ", "")
+interface User {
+  email: string
+}
 
-    if (!token) {
-      return NextResponse.json({ error: "No token provided" }, { status: 401 })
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      const token = localStorage.getItem("auth_token")
+      if (token) {
+        try {
+          const response = await fetch("/api/auth/verify", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (response.ok) {
+            const data = await response.json()
+            setUser({ email: data.email })
+          } else {
+            localStorage.removeItem("auth_token")
+            setUser(null)
+          }
+        } catch (error) {
+          localStorage.removeItem("auth_token")
+          setUser(null)
+        }
+      }
+      setIsLoading(false)
     }
+    verifyToken()
+  }, [])
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any
-
-    return NextResponse.json({
-      id: decoded.id,
-      email: decoded.email,
-      isAdmin: decoded.isAdmin,
-    })
-  } catch (error) {
-    console.error("Token verification error:", error)
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 })
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        localStorage.setItem("auth_token", data.token)
+        setUser({ email })
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error("Login error:", error)
+      return false
+    }
   }
+
+  const logout = () => {
+    localStorage.removeItem("auth_token")
+    setUser(null)
+    router.push("/")
+  }
+
+  return { user, isLoading, login, logout }
 }

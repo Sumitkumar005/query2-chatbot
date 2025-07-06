@@ -6,88 +6,56 @@ export async function POST(request: NextRequest) {
   try {
     const { message, language, history } = await request.json()
 
-    // Call Python subprocess for chat processing
-    const response = await processChatWithPython(message, language, history)
+    if (!message) {
+      return NextResponse.json({ error: "Message is required" }, { status: 400 })
+    }
 
-    return NextResponse.json({
-      response: response.text,
-      followUps: response.followUps,
-    })
-  } catch (error) {
-    console.error("Chat API error:", error)
-    return NextResponse.json({ error: "Failed to process message" }, { status: 500 })
-  }
-}
-
-async function processChatWithPython(message: string, language: string, history: any[]): Promise<any> {
-  return new Promise((resolve, reject) => {
+    // Call Python script for AI processing
     const pythonScript = path.join(process.cwd(), "scripts", "chat_processor.py")
-    const pythonProcess = spawn("python", [pythonScript], {
+
+    const pythonProcess = spawn("python3", [pythonScript], {
       stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, PYTHONUNBUFFERED: "1" },
     })
 
     const inputData = JSON.stringify({
       message,
-      language,
-      history: history.slice(-5), // Send last 5 messages for context
-    })
-
-    let outputData = ""
-    let errorData = ""
-
-    pythonProcess.stdout.on("data", (data) => {
-      outputData += data.toString()
-    })
-
-    pythonProcess.stderr.on("data", (data) => {
-      errorData += data.toString()
-    })
-
-    pythonProcess.on("close", (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(outputData)
-          resolve(result)
-        } catch (parseError) {
-          // Fallback response if Python script fails
-          resolve({
-            text: generateFallbackResponse(message),
-            followUps: generateFallbackFollowUps(message),
-          })
-        }
-      } else {
-        console.error("Python process error:", errorData)
-        resolve({
-          text: generateFallbackResponse(message),
-          followUps: generateFallbackFollowUps(message),
-        })
-      }
+      language: language || "en",
+      history: history || [],
     })
 
     pythonProcess.stdin.write(inputData)
     pythonProcess.stdin.end()
-  })
-}
 
-function generateFallbackResponse(message: string): string {
-  const responses = [
-    "I'd be happy to help you with university information. Could you please be more specific about what you'd like to know?",
-    "Based on the available data, I'm processing your query about university programs and requirements.",
-    "Let me search through our university database for that information.",
-    "That's a great question! I can help you with university admissions, visa requirements, and program details.",
-    "I'm here to assist with your university and visa-related queries. What specific information are you looking for?",
-  ]
-  return responses[Math.floor(Math.random() * responses.length)]
-}
+    let output = ""
+    let error = ""
 
-function generateFallbackFollowUps(message: string): string[] {
-  const followUps = [
-    "What are the admission requirements?",
-    "Tell me about tuition fees",
-    "What programs are available?",
-    "How do I apply for a student visa?",
-    "What documents do I need for F-1 visa?",
-    "Which universities offer scholarships?",
-  ]
-  return followUps.slice(0, 3)
+    pythonProcess.stdout.on("data", (data) => {
+      output += data.toString()
+    })
+
+    pythonProcess.stderr.on("data", (data) => {
+      error += data.toString()
+    })
+
+    return new Promise((resolve) => {
+      pythonProcess.on("close", (code) => {
+        if (code !== 0) {
+          console.error("Python script error:", error)
+          resolve(NextResponse.json({ error: "Failed to process message", details: error }, { status: 500 }))
+        } else {
+          try {
+            const result = JSON.parse(output)
+            resolve(NextResponse.json(result))
+          } catch (parseError) {
+            console.error("Failed to parse Python output:", parseError, "Output:", output)
+            resolve(NextResponse.json({ error: "Invalid response format", details: error }, { status: 500 }))
+          }
+        }
+      })
+    })
+  } catch (error) {
+    console.error("Chat API error:", error)
+    return NextResponse.json({ error: "Internal server error", details: error.message }, { status: 500 })
+  }
 }

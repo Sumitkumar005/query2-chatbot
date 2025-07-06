@@ -1,0 +1,19 @@
+Patient: Leslie Terry
+- Date of Birth: June 5, 1957 (Estimated)
+- Place of Origin: Manchester, UK
+- Currently Located In: London, UK
+- Nationality: British
+- Highest Education: Master's in Business Administration
+- Profession: Retired Financial Consultant
+- Brief Past Medical History: History of high cholesterol, minor heart palpitations, underwent gallbladder removal in 2010.
+- Allergic To: Mild allergy to seafood.
+- Current Medical Condition: Obesity (Emergency treatment required)
+- Hospital: Kim Inc.
+- Primary Doctor: Dr. Samantha Davies
+- Medication Prescribed: Ibuprofen
+- Test Results: Inconclusive
+- Insurance Provider: Medicare
+- Billing Amount: $33,643.33
+- Room Number: 265
+- Admission Type: Emergency
+- Discharge Date: August 26, 2019

@@ -1,161 +1,121 @@
 "use client"
 
-import { useState, useEffect, useRef, Suspense } from "react"
-import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Environment, Float } from "@react-three/drei"
+import { useState, useEffect, useRef } from "react"
+import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Card, CardContent } from "@/components/ui/card"
 import {
-  Bot,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import {
   Send,
   Mic,
-  Volume2,
   ThumbsUp,
   ThumbsDown,
-  Globe,
-  MessageCircle,
-  User,
-  Trash2,
-  Menu,
-  X,
-  Upload,
-  RefreshCw,
   LogOut,
-  ChevronDown,
+  User,
+  MessageCircle,
+  Upload,
+  Trash2,
+  RefreshCw,
 } from "lucide-react"
-import { FloatingParticles } from "@/components/floating-particles"
-import { useAuth } from "@/hooks/use-auth"
+import { toast } from "sonner"
+import Link from "next/link"
 import { LoginDialog } from "@/components/login-dialog"
-import { ProfessionalRobot3D } from "@/components/professional-robot-3d"
-import { AdminPanelEnhanced } from "@/components/admin-panel-enhanced"
 
 interface Message {
-  id: string
   type: "user" | "bot"
   content: string
-  timestamp: Date
   followUps?: string[]
-  feedback?: "positive" | "negative"
-}
-
-const LANGUAGES = {
-  English: "en",
-  Hindi: "hi",
-  Spanish: "es",
-  French: "fr",
-  German: "de",
 }
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
-  const [selectedLanguage, setSelectedLanguage] = useState("English")
+  const [language, setLanguage] = useState("en")
   const [isLoading, setIsLoading] = useState(false)
-  const [showSidebar, setShowSidebar] = useState(true)
-  const [showLoginDialog, setShowLoginDialog] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { user, isAuthenticated, logout } = useAuth()
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loginOpen, setLoginOpen] = useState(false)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const { user, logout } = useAuth()
 
   useEffect(() => {
-    scrollToBottom()
+    setIsAuthenticated(!!user)
+  }, [user])
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
+    }
   }, [messages])
 
-  // Add welcome message on first load
-  useEffect(() => {
-    if (messages.length === 0) {
-      const welcomeMessage: Message = {
-        id: "welcome",
-        type: "bot",
-        content:
-          "Welcome to Visarobot.ai! I'm here to help you with university information, visa requirements, and admission queries. How can I assist you today?",
-        timestamp: new Date(),
-        followUps: [
-          "What programs does MIT offer?",
-          "Tell me about visa requirements",
-          "What are the tuition fees for Computer Science?",
-          "How do I apply for a student visa?",
-        ],
-      }
-      setMessages([welcomeMessage])
-    }
-  }, [])
-
-  const handleSendMessage = async () => {
+  const handleSend = async () => {
     if (!input.trim()) return
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: "user",
-      content: input,
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
     setIsLoading(true)
+    const newMessage: Message = { type: "user", content: input }
+    setMessages((prev) => [...prev, newMessage])
+    setInput("")
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: input,
-          language: LANGUAGES[selectedLanguage],
-          history: messages.slice(-5),
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input, language, history: messages.slice(-5) }),
       })
 
       const data = await response.json()
-
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: "bot",
-        content: data.response,
-        timestamp: new Date(),
-        followUps: data.followUps || [],
+      if (data.success) {
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", content: data.text, followUps: data.followUps },
+        ])
+      } else {
+        toast.error(data.text || "Failed to get response")
+        setMessages((prev) => [
+          ...prev,
+          { type: "bot", content: "Sorry, something went wrong. Please try again." },
+        ])
       }
-
-      setMessages((prev) => [...prev, botMessage])
     } catch (error) {
-      console.error("Error sending message:", error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: "bot",
-        content: "Sorry, I encountered an error. Please try again.",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
+      toast.error("Network error. Please check your connection.")
+      setMessages((prev) => [
+        ...prev,
+        { type: "bot", content: "Network error. Please try again." },
+      ])
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleFollowUp = (question: string) => {
-    setInput(question)
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 
-  const handleFeedback = (messageId: string, feedback: "positive" | "negative") => {
-    setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, feedback } : msg)))
+  const handleFollowUp = (followUp: string) => {
+    setInput(followUp)
+    handleSend()
   }
 
-  const playAudio = async (text: string) => {
+  const handleFeedback = (index: number, feedback: "up" | "down") => {
+    toast.success(`Feedback recorded: ${feedback === "up" ? "Thumbs Up" : "Thumbs Down"}`)
+  }
+
+  const handleTTS = async (text: string) => {
     try {
       const response = await fetch("/api/tts", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text, language: LANGUAGES[selectedLanguage] }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, language }),
       })
 
       if (response.ok) {
@@ -163,400 +123,279 @@ export default function ChatPage() {
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)
         audio.play()
+      } else {
+        toast.error("Failed to generate audio")
       }
     } catch (error) {
-      console.error("Error playing audio:", error)
+      toast.error("Error playing audio")
     }
   }
 
-  const clearChat = () => {
-    setMessages([])
+  const handleReindex = async () => {
+    setIsLoading(true)
+    try {
+      const token = localStorage.getItem("auth_token")
+      if (!token) {
+        toast.error("Please log in to perform this action")
+        setLoginOpen(true)
+        return
+      }
+      const response = await fetch("/api/admin/reindex", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        toast.success(`Reindexed ${data.chunks} chunks from ${data.files} files`)
+      } else {
+        throw new Error(data.error || "Failed to reindex data")
+      }
+    } catch (error) {
+      toast.error(`Reindex failed: ${error.message}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteData = async () => {
+    setIsLoading(true)
+    try {
+      const token = localStorage.getItem("auth_token")
+      if (!token) {
+        toast.error("Please log in to perform this action")
+        setLoginOpen(true)
+        return
+      }
+      const response = await fetch("/api/admin/delete-files", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ files: [] }), // Update with selected files if needed
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        toast.success("Data deleted successfully")
+      } else {
+        throw new Error(data.error || "Failed to delete data")
+      }
+    } catch (error) {
+      toast.error(`Delete failed: ${error.message}`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
-    <div className="h-screen bg-slate-900 flex overflow-hidden">
-      {/* 3D Background */}
-      <div className="absolute inset-0 opacity-10">
-        <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-          <Suspense fallback={null}>
-            <Environment preset="night" />
-            <ambientLight intensity={0.3} />
-            <pointLight position={[10, 10, 10]} intensity={0.5} color="#00ffff" />
-
-            <Float speed={1} rotationIntensity={0.2} floatIntensity={0.3}>
-              <ProfessionalRobot3D position={[3, 0, -2]} scale={0.5} />
-            </Float>
-
-            <FloatingParticles count={15} />
-
-            <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} />
-          </Suspense>
-        </Canvas>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 flex">
       {/* Sidebar */}
-      <div
-        className={`${showSidebar ? "w-80" : "w-0"} transition-all duration-300 bg-slate-800/90 backdrop-blur-md border-r border-slate-700 overflow-hidden`}
-      >
-        <div className="p-6 h-full overflow-y-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">
-                <Bot className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">Visarobot.ai</h2>
-                <p className="text-xs text-slate-400">AI University Assistant</p>
-              </div>
-            </div>
+      <div className="w-80 bg-white/10 backdrop-blur-md p-6 border-r border-white/20 hidden lg:block">
+        <div className="flex items-center space-x-3 mb-8">
+          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+            <MessageCircle className="h-5 w-5 text-white" />
           </div>
-
-          {/* User Profile */}
-          {isAuthenticated ? (
-            <Card className="bg-slate-700/50 border-slate-600 mb-6">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                    <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-white">{user?.email}</p>
-                    <p className="text-xs text-slate-400">{user?.isAdmin ? "Administrator" : "User"}</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={logout} className="text-slate-400 hover:text-white">
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="bg-slate-700/50 border-slate-600 mb-6">
-              <CardContent className="p-4 text-center">
-                <User className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm text-slate-300 mb-3">Sign in for personalized experience</p>
-                <Button
-                  onClick={() => setShowLoginDialog(true)}
-                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-                >
-                  Sign In
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Quick Actions */}
-          <div className="space-y-4 mb-8">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Quick Actions</h3>
-            <div className="space-y-2">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700"
-                onClick={clearChat}
-              >
-                <MessageCircle className="h-4 w-4 mr-3" />
-                New Chat
-              </Button>
-              {isAuthenticated && user?.isAdmin && (
-                <>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700"
-                  >
-                    <Upload className="h-4 w-4 mr-3" />
-                    Upload Files
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-3" />
-                    Reindex Data
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Example Questions */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Example Questions</h3>
-            <div className="space-y-2">
-              {[
-                "What programs does MIT offer?",
-                "What are the tuition fees for Computer Science?",
-                "Tell me about visa requirements",
-                "How do I apply for a student visa?",
-                "What documents do I need for F-1 visa?",
-                "Which universities offer scholarships?",
-              ].map((question, index) => (
-                <Button
-                  key={index}
-                  variant="ghost"
-                  className="w-full text-left text-sm text-slate-400 hover:text-white hover:bg-slate-700 h-auto p-3 whitespace-normal leading-relaxed"
-                  onClick={() => handleFollowUp(question)}
-                >
-                  {question}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <span className="text-xl font-bold text-gray-800">Visamonk Chat</span>
         </div>
-        {showSidebar && isAuthenticated && user?.isAdmin && (
-          <div className="mt-6">
-            <AdminPanelEnhanced />
-          </div>
-        )}
-      </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
-        {/* Top Bar */}
-        <div className="bg-slate-800/90 backdrop-blur-md border-b border-slate-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="space-y-4">
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+            onClick={() => setMessages([])}
+          >
+            New Chat
+          </Button>
+
+          {isAuthenticated ? (
+            <>
+              <Link href="/admin">
+                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-full">
+                  Admin Panel
+                </Button>
+              </Link>
+              <Link href="/admin#upload">
+                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-full">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Data
+                </Button>
+              </Link>
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="text-slate-300 hover:text-white"
-              >
-                {showSidebar ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-semibold text-white">University Assistant</h1>
-                  <p className="text-xs text-slate-400">Powered by Google Gemini & RAG</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white">
-                  <Globe className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-slate-600">
-                  {Object.keys(LANGUAGES).map((lang) => (
-                    <SelectItem key={lang} value={lang} className="text-white hover:bg-slate-600">
-                      {lang}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearChat}
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
+                className="w-full bg-red-600 hover:bg-red-700 text-white rounded-full"
+                onClick={handleDeleteData}
+                disabled={isLoading}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Clear
+                Delete Data
               </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.length === 0 && (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Bot className="h-10 w-10 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-3">Welcome to Visarobot.ai</h2>
-              <p className="text-slate-400 max-w-md mx-auto">
-                I'm your AI-powered university assistant. Ask me anything about universities, programs, visa
-                requirements, or admission processes!
-              </p>
-            </div>
-          )}
-
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-3xl ${message.type === "user" ? "ml-12" : "mr-12"}`}>
-                <div className="flex items-start space-x-3 mb-2">
-                  {message.type === "bot" && (
-                    <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-5 w-5 text-white" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-sm font-medium text-slate-300">
-                        {message.type === "bot" ? "Visarobot.ai" : "You"}
-                      </span>
-                      <span className="text-xs text-slate-500">{message.timestamp.toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                  {message.type === "user" && (
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm">
-                        {user?.email?.charAt(0).toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white rounded-full"
+                onClick={handleReindex}
+                disabled={isLoading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reindex Data
+              </Button>
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Profile</h3>
+                <div className="flex items-center space-x-2 text-gray-700">
+                  <User className="h-5 w-5" />
+                  <span>{user?.email}</span>
                 </div>
-
-                <Card
-                  className={`${
-                    message.type === "user"
-                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white border-0 ml-11"
-                      : "bg-slate-800/80 backdrop-blur-md border-slate-700 text-white ml-11"
-                  } shadow-lg`}
+                <Button
+                  variant="ghost"
+                  className="w-full text-red-600 hover:bg-red-600/10 mt-2"
+                  onClick={logout}
                 >
-                  <CardContent className="p-4">
-                    <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-
-                    {message.type === "bot" && (
-                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-700">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => playAudio(message.content)}
-                            className="h-8 w-8 p-0 hover:bg-slate-700 text-slate-400 hover:text-white"
-                          >
-                            <Volume2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleFeedback(message.id, "positive")}
-                            className={`h-8 w-8 p-0 hover:bg-slate-700 ${
-                              message.feedback === "positive" ? "text-green-400" : "text-slate-400 hover:text-white"
-                            }`}
-                          >
-                            <ThumbsUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleFeedback(message.id, "negative")}
-                            className={`h-8 w-8 p-0 hover:bg-slate-700 ${
-                              message.feedback === "negative" ? "text-red-400" : "text-slate-400 hover:text-white"
-                            }`}
-                          >
-                            <ThumbsDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        {message.feedback && (
-                          <Badge variant="secondary" className="text-xs">
-                            {message.feedback === "positive" ? "👍 Helpful" : "👎 Not helpful"}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-
-                    {message.followUps && message.followUps.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-slate-700">
-                        <p className="text-sm font-medium text-slate-300 mb-3">Follow-up questions:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {message.followUps.map((followUp, index) => (
-                            <Button
-                              key={index}
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleFollowUp(followUp)}
-                              className="text-xs border-slate-600 hover:bg-slate-700 bg-transparent text-slate-300 hover:text-white"
-                            >
-                              {followUp}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
               </div>
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="max-w-3xl mr-12">
-                <div className="flex items-start space-x-3 mb-2">
-                  <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
-                    <Bot className="h-5 w-5 text-white animate-pulse" />
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-slate-300">Visarobot.ai</span>
-                  </div>
-                </div>
-
-                <Card className="bg-slate-800/80 backdrop-blur-md border-slate-700 ml-11">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.1s" }}
-                        ></div>
-                        <div
-                          className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                      </div>
-                      <span className="text-slate-400 text-sm">Thinking...</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            </>
+          ) : (
+            <Button
+              onClick={() => setLoginOpen(true)}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Login
+            </Button>
           )}
 
-          <div ref={messagesEndRef} />
-        </div>
+          <Select value={language} onValueChange={setLanguage}>
+            <SelectTrigger className="bg-white/20 border-white/30">
+              <SelectValue placeholder="Select language" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="hi">Hindi</SelectItem>
+              <SelectItem value="es">Spanish</SelectItem>
+              <SelectItem value="fr">French</SelectItem>
+              <SelectItem value="de">German</SelectItem>
+            </SelectContent>
+          </Select>
 
-        {/* Input Area */}
-        <div className="p-6 bg-slate-800/90 backdrop-blur-md border-t border-slate-700">
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask your question about universities, visas, or admissions..."
-                className="bg-slate-700 border-slate-600 text-white placeholder-slate-400 h-12 text-base"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-              />
-            </div>
-            <div className="flex space-x-2">
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Example Questions</h3>
+            {[
+              "What is the tuition at MIT?",
+              "Which universities offer Computer Science?",
+              "What is visamonk.ai?",
+            ].map((q, index) => (
               <Button
-                variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent h-12 w-12 p-0"
+                key={index}
+                variant="ghost"
+                className="w-full text-left text-gray-700 hover:bg-white/20"
+                onClick={() => setInput(q)}
               >
-                <Mic className="h-5 w-5" />
+                {q}
               </Button>
-              <Button
-                onClick={handleSendMessage}
-                disabled={!input.trim() || isLoading}
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 h-12 px-6"
-              >
-                <Send className="h-5 w-5" />
-              </Button>
-            </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <LoginDialog open={showLoginDialog} onOpenChange={setShowLoginDialog} />
+      {/* Login Dialog */}
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col p-6">
+        <ScrollArea className="flex-1 mb-6 bg-white/10 backdrop-blur-md rounded-xl p-6" ref={scrollAreaRef}>
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-700 mt-20">
+              <MessageCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg">Start a conversation by typing a question below!</p>
+            </div>
+          ) : (
+            messages.map((msg, index) => (
+              <div
+                key={index}
+                className={`mb-4 p-4 rounded-lg ${
+                  msg.type === "user"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white ml-20"
+                    : "bg-white/20 text-gray-800 mr-20"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <p>{msg.content}</p>
+                  {msg.type === "bot" && (
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleTTS(msg.content)}
+                        className="text-gray-600 hover:bg-white/20"
+                      >
+                        <Mic className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFeedback(index, "up")}
+                        className="text-gray-600 hover:bg-white/20"
+                      >
+                        <ThumbsUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleFeedback(index, "down")}
+                        className="text-gray-600 hover:bg-white/20"
+                      >
+                        <ThumbsDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {msg.followUps && msg.followUps.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-1">Suggested follow-ups:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {msg.followUps.map((followUp, i) => (
+                        <Button
+                          key={i}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFollowUp(followUp)}
+                          className="text-gray-700 border-gray-300 hover:bg-gray-100"
+                        >
+                          {followUp}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </ScrollArea>
+
+        <Card className="bg-white/20 backdrop-blur-md border-white/30">
+          <CardContent className="p-4 flex items-center space-x-4">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your question here..."
+              className="flex-1 bg-transparent border-white/30 text-gray-800 placeholder-gray-500 rounded-full"
+            />
+            <Button
+              onClick={handleSend}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" className="text-gray-600 hover:bg-white/20">
+              <Mic className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

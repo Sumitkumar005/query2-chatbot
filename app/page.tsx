@@ -1,18 +1,18 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
-import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Environment, Float } from "@react-three/drei"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Bot, MessageCircle, Globe, Shield, Zap, Award, ChevronRight } from "lucide-react"
+import { Bot, MessageCircle, Globe, Shield, Zap, Award, ChevronRight, User } from "lucide-react"
 import Link from "next/link"
-import { ProfessionalRobot3D } from "@/components/professional-robot-3d"
-import { FloatingParticles } from "@/components/floating-particles"
+import { LoginDialog } from "@/components/login-dialog"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false)
+  const [loginOpen, setLoginOpen] = useState(false)
+  const { user } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -46,6 +46,21 @@ export default function HomePage() {
             <Link href="/contact" className="text-gray-700 hover:text-gray-900 font-medium transition-colors">
               Contact
             </Link>
+            {user ? (
+              <Link href="/admin">
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-medium">
+                  Admin Panel
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                onClick={() => setLoginOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-medium"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Login
+              </Button>
+            )}
             <Link href="/chat">
               <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-medium">
                 Try Now
@@ -55,35 +70,11 @@ export default function HomePage() {
         </div>
       </nav>
 
+      {/* Login Dialog */}
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center pt-20">
-        {/* 3D Background */}
-        <div className="absolute inset-0 w-full h-full">
-          <Canvas camera={{ position: [0, 0, 8], fov: 60 }}>
-            <Suspense fallback={null}>
-              <Environment preset="sunset" />
-              <ambientLight intensity={0.6} />
-              <pointLight position={[10, 10, 10]} intensity={1} color="#00ffff" />
-              <pointLight position={[-10, -10, -10]} intensity={0.8} color="#ff00ff" />
-
-              <Float speed={1.2} rotationIntensity={0.3} floatIntensity={0.4}>
-                <ProfessionalRobot3D position={[-3, 0, 0]} />
-              </Float>
-
-              <FloatingParticles count={30} />
-
-              <OrbitControls
-                enableZoom={false}
-                enablePan={false}
-                autoRotate
-                autoRotateSpeed={0.5}
-                maxPolarAngle={Math.PI / 2}
-                minPolarAngle={Math.PI / 2}
-              />
-            </Suspense>
-          </Canvas>
-        </div>
-
         <div className="relative z-10 container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div className="text-left">
             <Badge className="mb-6 bg-white/20 text-gray-800 border-white/30 backdrop-blur-sm">
@@ -117,7 +108,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="hidden lg:block">{/* This space is for the 3D robot */}</div>
+          <div className="hidden lg:block"></div>
         </div>
       </section>
 
