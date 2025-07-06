@@ -238,5 +238,4 @@ For support and questions:
 - React Three Fiber for 3D graphics
 - Shadcn/ui for UI components
 - FAISS for vector similarity search
-#   s u m i t 2 - q u e r y - c h a t b o t  
- 
+#
