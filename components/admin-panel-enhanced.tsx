@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react" // Added useEffect
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,6 +37,34 @@ export function AdminPanelEnhanced() {
   const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([])
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
   const { toast } = useToast()
+
+  const loadUploadedFiles = async () => {
+    try {
+      const token = localStorage.getItem("auth_token")
+      const response = await fetch("/api/admin/files", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUploadedFiles(data.files || [])
+      }
+    } catch (error) {
+      console.error("Failed to load files:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load uploaded files",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Load files on component mount
+  useEffect(() => {
+    loadUploadedFiles()
+  }, []) // Empty dependency array for mount-only execution
 
   const handleScrapeWebsite = async () => {
     setIsLoading(true)
@@ -235,29 +261,6 @@ export function AdminPanelEnhanced() {
       setIsLoading(false)
     }
   }
-
-  const loadUploadedFiles = async () => {
-    try {
-      const token = localStorage.getItem("auth_token")
-      const response = await fetch("/api/admin/files", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUploadedFiles(data.files || [])
-      }
-    } catch (error) {
-      console.error("Failed to load files:", error)
-    }
-  }
-
-  // Load files on component mount
-  useState(() => {
-    loadUploadedFiles()
-  })
 
   const toggleFileSelection = (fileName: string) => {
     setSelectedFiles((prev) => (prev.includes(fileName) ? prev.filter((f) => f !== fileName) : [...prev, fileName]))

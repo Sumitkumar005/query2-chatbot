@@ -1,71 +1,38 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { readdir, stat } from "fs/promises"
+import { NextResponse } from "next/server"
+import fs from "fs/promises"
 import path from "path"
-import jwt from "jsonwebtoken"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Verify admin authentication
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const dataDir = path.join(process.cwd(), "scraped_data")
+    let files: { name: string; size: number; type: string; uploadDate: string }[] = []
 
-    const token = authHeader.replace("Bearer ", "")
-    const decoded = jwt.verify(token, JWT_SECRET) as any
-
-    if (!decoded.isAdmin) {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 })
-    }
-
-    const files: any[] = []
-
-    // Check data directory
     try {
-      const dataFiles = await readdir("data")
-      for (const file of dataFiles) {
-        if (file !== "chatbot.db") {
-          const filePath = path.join("data", file)
-          const stats = await stat(filePath)
-          files.push({
-            name: file,
+      const fileNames = await fs.readdir(dataDir)
+      files = await Promise.all(
+        fileNames.map(async (fileName) => {
+          const filePath = path.join(dataDir, fileName)
+          const stats = await fs.stat(filePath)
+          return {
+            name: fileName,
             size: stats.size,
-            type: path.extname(file).substring(1).toUpperCase() || "Unknown",
-            uploadDate: stats.mtime.toLocaleDateString(),
-            directory: "data",
-          })
-        }
-      }
-    } catch (error) {
-      console.error("Error reading data directory:", error)
-    }
-
-    // Check scraped_data directory
-    try {
-      const scrapedFiles = await readdir("scraped_data")
-      for (const file of scrapedFiles) {
-        const filePath = path.join("scraped_data", file)
-        const stats = await stat(filePath)
-        files.push({
-          name: file,
-          size: stats.size,
-          type: path.extname(file).substring(1).toUpperCase() || "Unknown",
-          uploadDate: stats.mtime.toLocaleDateString(),
-          directory: "scraped_data",
+            type: path.extname(fileName).slice(1).toUpperCase(),
+            uploadDate: stats.mtime.toISOString().split("T")[0],
+          }
         })
+      )
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        await fs.mkdir(dataDir, { recursive: true })
+        console.warn("Created missing scraped_data directory")
+      } else {
+        throw error
       }
-    } catch (error) {
-      console.error("Error reading scraped_data directory:", error)
     }
 
-    return NextResponse.json({
-      success: true,
-      files: files.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()),
-    })
+    return NextResponse.json({ files })
   } catch (error) {
-    console.error("Files API error:", error)
-    return NextResponse.json({ error: "Failed to load files" }, { status: 500 })
+    console.error("Error reading files:", error)
+    return NextResponse.json({ error: "Failed to list files" }, { status: 500 })
   }
 }

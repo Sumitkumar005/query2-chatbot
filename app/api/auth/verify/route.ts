@@ -1,67 +1,18 @@
-"use client"
+import { NextResponse } from "next/server"
+import jwt from "jsonwebtoken"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-
-interface User {
-  email: string
-}
-
-export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
-
-  useEffect(() => {
-    const verifyToken = async () => {
-      const token = localStorage.getItem("auth_token")
-      if (token) {
-        try {
-          const response = await fetch("/api/auth/verify", {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          if (response.ok) {
-            const data = await response.json()
-            setUser({ email: data.email })
-          } else {
-            localStorage.removeItem("auth_token")
-            setUser(null)
-          }
-        } catch (error) {
-          localStorage.removeItem("auth_token")
-          setUser(null)
-        }
-      }
-      setIsLoading(false)
+export async function GET(request: Request) {
+  try {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "No token provided" }, { status: 401 })
     }
-    verifyToken()
-  }, [])
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      })
-      if (response.ok) {
-        const data = await response.json()
-        localStorage.setItem("auth_token", data.token)
-        setUser({ email })
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error("Login error:", error)
-      return false
-    }
+    const token = authHeader.split(" ")[1]
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret") as { email: string }
+
+    return NextResponse.json({ email: decoded.email })
+  } catch (error) {
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 })
   }
-
-  const logout = () => {
-    localStorage.removeItem("auth_token")
-    setUser(null)
-    router.push("/")
-  }
-
-  return { user, isLoading, login, logout }
 }

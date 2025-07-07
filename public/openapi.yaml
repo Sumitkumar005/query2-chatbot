@@ -1,0 +1,251 @@
+openapi: 3.0.0
+info:
+  title: Visamonk University Chatbot API
+  version: 1.0.0
+  description: API documentation for the Visamonk University Chatbot
+servers:
+  - url: https://cuddly-space-couscous-x59xq6pg5v4qhvqq7-3000.app.github.dev/api
+    description: Codespaces development server
+  - url: http://localhost:3000/api
+    description: Local development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: Unauthorized
+  /auth/verify:
+    get:
+      summary: Verify JWT token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                  success:
+                    type: boolean
+        '401':
+          description: Invalid token
+  /chat:
+    post:
+      summary: Process chat message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                language:
+                  type: string
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      content:
+                        type: string
+              required:
+                - message
+      responses:
+        '200':
+          description: Chat response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  text:
+                    type: string
+                  followUps:
+                    type: array
+                    items:
+                      type: string
+        '500':
+          description: Internal server error
+  /tts:
+    post:
+      summary: Generate text-to-speech audio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                language:
+                  type: string
+              required:
+                - text
+      responses:
+        '200':
+          description: Audio file
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '500':
+          description: Failed to generate audio
+  /admin/upload:
+    post:
+      summary: Upload file (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to upload file
+  /admin/delete-files:
+    post:
+      summary: Delete files (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Files deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to delete files
+  /admin/reindex:
+    post:
+      summary: Reindex data (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Data reindexed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  chunks:
+                    type: integer
+                  files:
+                    type: integer
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to reindex
+  /admin/clear-database:
+    post:
+      summary: Clear database and vectorstore (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Database cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '500':
+          description: Failed to clear database
+  /admin/files:
+    get:
+      summary: List uploaded files (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '401':
+          description: Unauthorized
