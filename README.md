@@ -180,10 +180,9 @@ Streamlit was perfect for quick prototyping but lacked flexibility, security, an
 ![Homepage 3](./public/Homepage3.png)  
 
 ### Admin Panel
-
+![Admin Login Page](./public/Admin_login_page.png)  
 ![Admin Control 1](./public/Admin_control1.png)  
 ![Admin Control 2](./public/Admin_control2.png)  
-![Admin Login Page](./public/Admin_login_page.png)  
 
 ### Chat Interface
 
