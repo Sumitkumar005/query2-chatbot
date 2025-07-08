@@ -173,28 +173,28 @@ Streamlit was perfect for quick prototyping but lacked flexibility, security, an
 
 ## Screenshots 🖼️
 
+### Homepage
+
+![Homepage 1](./public/Homepage1.png)  
+![Homepage 2](./public/Homepage2.png)  
+![Homepage 3](./public/Homepage3.png)  
+
 ### Admin Panel
 
 ![Admin Control 1](./public/Admin_control1.png)  
-![Admin Control 2](./Public/Admin_control2.png)  
-![Admin Login Page](./Public/Admin_login_page.png)  
+![Admin Control 2](./public/Admin_control2.png)  
+![Admin Login Page](./public/Admin_login_page.png)  
 
 ### Chat Interface
 
-![Chat UI Before Login](./Public/chat_UI_before_login.png)  
-![Chat UI After Login](./Public/chat_UI_after_login.png)  
-
-### Homepage
-
-![Homepage 1](./Public/Homepage1.png)  
-![Homepage 2](./Public/Homepage2.png)  
-![Homepage 3](./Public/Homepage3.png)  
+![Chat UI Before Login](./public/chat_UI_before_login.png)  
+![Chat UI After Login](./public/chat_UI_after_login.png)  
 
 ### Swagger API Testing
 
-![Swagger APIs](./Public/swagger_APIs.png)  
-![Swagger APIs Testing - Questions](./Public/swagger_APIs_testing_Q.png)  
-![Swagger APIs Testing - Response](./Public/swagger_APIs_testing_response.png)  
+![Swagger APIs](./public/swagger_APIs.png)  
+![Swagger APIs Testing - Questions](./public/swagger_APIs_testing_Q.png)  
+![Swagger APIs Testing - Response](./public/swagger_APIs_testing_response.png)  
 
 ---
 
