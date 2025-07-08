@@ -2,17 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { spawn } from "child_process"
 import path from "path"
 
-export async function POST(request) {
-  const { message, language, history } = await request.json();
-  const response = await fetch('https://visamonk-python-backend.herokuapp.com/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, language, history }),
-  });
-  const data = await response.json();
-  return NextResponse.json(data);
-}
-
 export async function POST(request: NextRequest) {
   try {
     const { message, language, history } = await request.json()
