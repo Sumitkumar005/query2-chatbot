@@ -2,6 +2,37 @@ import { type NextRequest, NextResponse } from "next/server"
 import { spawn } from "child_process"
 import path from "path"
 
+import { NextResponse } from "next/server";
+
+export async function POST(request) {
+  try {
+    const { message, language, history } = await request.json();
+
+    // Validate input
+    if (!message || typeof language !== "string") {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
+
+    // Fetch the external Python backend (e.g., Heroku)
+    const response = await fetch('https://visamonk-python-backend.herokuapp.com/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, language, history }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Chat API error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+
 export async function POST(request: NextRequest) {
   try {
     const { message, language, history } = await request.json()
