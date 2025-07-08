@@ -175,7 +175,7 @@ Streamlit was perfect for quick prototyping but lacked flexibility, security, an
 
 ### Admin Panel
 
-![Admin Control 1](./Public/Admin_control1.png)  
+![Admin Control 1](./public/Admin_control1.png)  
 ![Admin Control 2](./Public/Admin_control2.png)  
 ![Admin Login Page](./Public/Admin_login_page.png)  
 
